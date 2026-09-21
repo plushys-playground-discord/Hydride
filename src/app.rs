@@ -25,6 +25,7 @@ pub async fn run() -> anyhow::Result<()> {
     init_tracing(&config.logging.filter)?;
     info!(pingable_members = ?config.join_pinglist.members.len(), "Loaded pinglist with");
     info!(revive_role_id = ?config.moderation.revive_role_id, "Loaded ");
+    info!(moderation_log_channel = ?config.moderation.default_log_channel_id , "Loaded ");
 
     let database = Database::connect(&config.database.url)
         .await

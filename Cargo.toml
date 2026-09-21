@@ -23,3 +23,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 members = [
     "cltool",
 ]
+
+[target.x86_64-unknown-linux-gnu]
+# Disable sccache inside the container
+sccache = false
+
+# Prevent mounting the host's ccache/sccache directories
+mount_volumes = []

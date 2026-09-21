@@ -7,17 +7,28 @@ register_globally = false
 
 [database]
 url = "sqlite://moderation_bot.db"
-# highlights_url = "sqlite://highlights.db"
+highlights_url = "sqlite://highlights.db"
+blacklist_url = "sqlite://blacklist.db"
 
 [logging]
 filter = "info,serenity=warn,sqlx=warn"
 
 [moderation]
 default_log_channel_id = 123456789012345678
-leave_log_channel_id = 123456789012345678
+default_leave_log_channel_id = 123456789012345678
 require_reason = true
 ephemeral_slash_responses = true
 max_case_results = 10
+# revive_role_id = 123456789012345678
+# error_log_channel = 123456789012345678
+# faq_password = "FAQ_PASSWORD"
+# verified_role = 123456789012345678
 
 [join_pinglist]
 members = [123456789012345678]
+
+[welcome_msg]
+main_image_url = "https://example.com/welcome.png"
+footer_image_url = "https://example.com/footer.png"
+welcome_channel_id = 123456789012345678
+boost_channel_id = 123456789012345678
