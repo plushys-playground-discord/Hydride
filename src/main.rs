@@ -1,3 +1,4 @@
+pub mod activity_graph;
 mod app;
 pub mod bar;
 mod bot;

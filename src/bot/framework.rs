@@ -98,6 +98,10 @@ pub async fn run(state: AppState) -> anyhow::Result<()> {
                 crate::commands::moderation::reconcile_expired_tempbans(ctx, &state, ready.user.id)
                     .await
                     .context("failed to reconcile expired tempbans")?;
+                tokio::spawn(crate::bot::membership::run_sampler(
+                    ctx.clone(),
+                    state.clone(),
+                ));
                 Ok(state)
             })
         })

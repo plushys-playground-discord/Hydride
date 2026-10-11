@@ -1,3 +1,4 @@
+pub mod activity_graph;
 pub mod banlist;
 pub mod cases;
 pub mod config;
@@ -54,6 +55,7 @@ pub fn all() -> Vec<poise::Command<AppState, Error>> {
         cases::remove_warn(),
         cases::update_reason(),
         stats::stats(),
+        activity_graph::activity_graph(),
         config::config(),
         highlights::highlight(),
     ]

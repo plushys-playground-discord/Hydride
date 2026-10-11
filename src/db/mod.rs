@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod blacklist;
 pub mod highlights;
 pub mod models;

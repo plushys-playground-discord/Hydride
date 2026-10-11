@@ -6,6 +6,9 @@ pub async fn handle(
     _framework: poise::FrameworkContext<'_, AppState, anyhow::Error>,
     data: &AppState,
 ) -> Result<(), anyhow::Error> {
+    if let Err(error) = data.membership_tracker().handle(_ctx, event, data).await {
+        tracing::warn!(%error, "failed to track membership event");
+    }
     match event {
         poise::serenity_prelude::FullEvent::Ready { data_about_bot } => {
             tracing::info!(user = %data_about_bot.user.tag(), "Discord gateway ready");

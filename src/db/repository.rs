@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Database {
-    pool: SqlitePool,
+    pub(super) pool: SqlitePool,
 }
 
 impl Database {

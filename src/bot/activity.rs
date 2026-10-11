@@ -96,56 +96,24 @@ pub async fn fetch_live_channel_snapshot(
     let mut poster_counts = HashMap::<u64, u32>::new();
     let mut total_messages = 0u64;
     let mut role_messages = 0u64;
-    let mut before = None;
-
-    loop {
-        let mut builder = GetMessages::new().limit(100);
-        if let Some(message_id) = before {
-            builder = builder.before(message_id);
+    scan_channel_messages(ctx, channel_id, start_day, end_exclusive, |message| {
+        record_message(
+            message,
+            start_day,
+            &mut daily_counts,
+            &mut hourly_buckets,
+            &mut message_lengths,
+            &mut poster_counts,
+        );
+        total_messages += 1;
+        if role_members
+            .as_ref()
+            .is_some_and(|members| members.contains(&message.author.id))
+        {
+            role_messages += 1;
         }
-
-        let messages = channel_id.messages(&ctx.http, builder).await?;
-        if messages.is_empty() {
-            break;
-        }
-
-        let oldest_message = messages.last().expect("non-empty message page");
-        let oldest_timestamp = oldest_message.timestamp.unix_timestamp();
-
-        for message in &messages {
-            let timestamp = message.timestamp.unix_timestamp();
-            if timestamp < start_day {
-                break;
-            }
-
-            if timestamp >= end_exclusive {
-                continue;
-            }
-
-            record_message(
-                message,
-                start_day,
-                &mut daily_counts,
-                &mut hourly_buckets,
-                &mut message_lengths,
-                &mut poster_counts,
-            );
-            total_messages += 1;
-
-            if role_members
-                .as_ref()
-                .is_some_and(|members| members.contains(&message.author.id))
-            {
-                role_messages += 1;
-            }
-        }
-
-        if oldest_timestamp < start_day {
-            break;
-        }
-
-        before = Some(oldest_message.id);
-    }
+    })
+    .await?;
 
     let unique_authors = poster_counts.len() as u32;
     let mut top_posters: Vec<(u64, u32)> = poster_counts.into_iter().collect();
@@ -355,4 +323,40 @@ fn window_bounds(window_days: u32) -> (i64, i64) {
     let start_day = today - (window_days.saturating_sub(1) as i64 * DAY_SECONDS);
     let end_exclusive = today + DAY_SECONDS;
     (start_day, end_exclusive)
+}
+
+/// Scan existing messages in a fixed half-open UTC window; errors never yield a partial report.
+pub async fn scan_channel_messages(
+    ctx: &serenity::client::Context,
+    channel_id: ChannelId,
+    start: i64,
+    end: i64,
+    mut record: impl FnMut(&Message) + Send,
+) -> anyhow::Result<()> {
+    let mut before = None;
+    loop {
+        let mut builder = GetMessages::new().limit(100);
+        if let Some(id) = before {
+            builder = builder.before(id);
+        }
+        let messages = channel_id.messages(&ctx.http, builder).await?;
+        let Some(oldest) = messages.last() else {
+            break;
+        };
+        for message in &messages {
+            let timestamp = message.timestamp.unix_timestamp();
+            if timestamp >= start && timestamp < end {
+                record(message);
+            }
+        }
+        if oldest.timestamp.unix_timestamp() < start {
+            break;
+        }
+        anyhow::ensure!(
+            before != Some(oldest.id),
+            "channel pagination did not advance"
+        );
+        before = Some(oldest.id);
+    }
+    Ok(())
 }

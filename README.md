@@ -198,3 +198,89 @@ cargo run
 ```
 
 For local development, keep `register_globally = false` and set `discord.dev_guild_ids` so slash commands update quickly in a test server.
+
+### Activity comparison graphs
+
+Use `/activity_graph [channel] [days]` (or the configured prefix followed by
+`activity_graph`) to receive three PNG graphs comparing daily messages with
+active members, total server membership, and joins/departures. The default is
+`#general` and 30 days; lookbacks are clamped to 7–30 days. If `general` is missing
+or duplicated, specify the channel explicitly. Text and announcement channels
+are supported. Both you and the bot need View Channel and Read Message History.
+Slash replies are private; prefix replies appear in the invoking channel.
+
+All graphs share UTC calendar days and mark today as incomplete. Messages and
+active authors exclude bot and webhook messages; membership metrics include all
+accounts. Active members means unique authors in the selected channel, including
+people who have since left. Message history counts messages still available in
+Discord, so deleted messages are excluded. Large scans time out after ten minutes.
+
+Membership collection begins at deployment and persists in the main SQLite
+database. The bot samples the gateway guild member count once per minute and
+records joins and departures through its existing GUILD_MEMBERS intent (which
+must also be enabled in the Discord Developer Portal). Total membership is the
+last observed count for each day, not a reconstruction of earlier membership.
+Disconnects, restarts, and failed writes leave coverage gaps. A `~` marks partial
+coverage (join/departure counts may undercount); `?` marks unavailable data.
+Missing observations are never plotted as zero or connected across gaps. The
+current day's membership coverage may be partial until the next sample.
+
+Charts render locally using Plotters and PNG encoding; no external chart service
+receives activity data. Rendering requires a system sans-serif font and the
+platform font libraries used by Plotters' TTF backend. On Debian/Ubuntu install
+`pkg-config libfontconfig1-dev libfreetype6-dev fonts-dejavu-core`; macOS uses
+its system fonts. Keep global registration disabled when testing in a dev guild.
+
+## Build locally and upload to Oracle Linux
+
+The upload script builds an x86_64 Linux release on your Mac inside an emulated
+Oracle Linux 8 Docker container. It requires Docker Desktop (or another Docker
+setup with Buildx and `linux/amd64` emulation). Compilation never runs on the
+server. Oracle Linux 8 is the build baseline; the script checks that the server
+is x86_64 Oracle Linux 8 or newer, then checks its shared libraries before
+replacing the executable.
+
+```bash
+export SERVER_IP='161.118.168.235'
+export SSH_USER='opc'
+export SSH_KEY='/Users/jayansunil/Downloads/ssh-key-2026-08-25 (1).key'
+
+# Preview without connecting or building:
+./scripts/upload.sh --dry-run
+
+# Build locally and upload:
+./scripts/upload.sh
+```
+
+The default upload directory is `/home/opc/moderation_bot`. Set `REMOTE_DIR` to
+your existing bot directory if different. The script uploads only the compiled
+binary; it preserves config and SQLite files. All migrations are embedded in
+the binary and run on the bot's next startup. Keep your existing service's
+working directory and `MODBOT_CONFIG` pointing at the existing configuration
+and database locations.
+
+Before the first upload, verify and accept the server SSH host key using your
+normal SSH connection; the script uses batch mode and retains host-key checking.
+The server needs runtime fonts and libraries for graphs:
+
+```bash
+ssh -i "$SSH_KEY" "$SSH_USER@$SERVER_IP"
+sudo dnf install fontconfig freetype dejavu-sans-fonts
+```
+
+Uploads are checked with SHA-256 and installed by an atomic rename. An existing
+binary is copied to `moderation_bot.previous-<timestamp>-<pid>` before replacement.
+The bot process is left running until you restart it. To restart an **existing**
+systemd service after upload (requires noninteractive sudo permission):
+
+```bash
+./scripts/upload.sh --restart moderation_bot.service
+```
+
+Use `./scripts/upload.sh --build-only` to build without SSH, or
+`./scripts/upload.sh --skip-build` to upload the existing artifact at
+`target/oracle-linux-x86_64/moderation_bot`. Override `ARTIFACT_DIR`, `RUST_VERSION`
+(default `1.95.0`), or `BUILD_JOBS` (default `2`) as needed. An ARM or macOS binary
+is rejected. Builds use `Cargo.lock` and a source-only staging context, excluding
+local bot tokens, database files, and Cargo environment overrides. If the server
+is Oracle Linux 7, this build baseline is incompatible and the script stops.

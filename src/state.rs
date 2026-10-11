@@ -10,6 +10,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppState {
+    membership_tracker: crate::bot::membership::MembershipTracker,
     config: Arc<BootstrapConfig>,
     database: Database,
     highlights_database: crate::db::HighlightsDatabase,
@@ -26,12 +27,17 @@ impl AppState {
         blacklist_database: crate::db::BlacklistDatabase,
     ) -> Self {
         Self {
+            membership_tracker: Default::default(),
             config,
             database,
             highlights_database,
             highlight_cache,
             blacklist_database,
         }
+    }
+
+    pub fn membership_tracker(&self) -> &crate::bot::membership::MembershipTracker {
+        &self.membership_tracker
     }
 
     pub fn config(&self) -> &Arc<BootstrapConfig> {
